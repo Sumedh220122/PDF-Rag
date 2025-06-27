@@ -1,64 +1,106 @@
-# PDF Question Answering with RAG
+# PDF Question Answering System
 
-This application uses Retrieval Augmented Generation (RAG) to answer questions about PDF documents using LangChain and Google's Gemini model.
+A streamlined application that uses RAG (Retrieval Augmented Generation) to answer questions about PDF documents. Built with Streamlit, LangChain, and Google's Gemini model.
 
 ## Features
 
-- PDF document processing and chunking
-- Semantic search using HuggingFace embeddings
-- Question answering using Google's Gemini model
-- Source attribution for answers
+- 📄 PDF Document Processing
+  - Upload and process PDF files
+  - Automatic text extraction and chunking
+  - Clean context management (fresh context for each new PDF)
 
-## Setup
+- 🔍 Intelligent Question Answering
+  - Powered by Google's Gemini model
+  - Context-aware responses
+  - Real-time processing
 
-1. Clone this repository
-2. Install dependencies:
+- 🎯 User-Friendly Interface
+  - Simple drag-and-drop PDF upload
+  - Clear success/error messages
+  - Currently loaded PDF indicator
+  - Easy document switching
+
+## Prerequisites
+
+- Python 3.8+
+- Google API key for Gemini
+- Internet connection for API calls
+
+## Installation
+
+1. Clone this repository:
+   ```bash
+   git clone <repository-url>
+   cd PDF_RAG
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv .venv
+   # On Windows
+   .venv\Scripts\activate
+   # On Unix or MacOS
+   source .venv/bin/activate
+   ```
+
+3. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Create a `.env` file based on `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-4. Add your Google API key to the `.env` file:
+
+4. Create a `.env` file in the project root and add your Google API key:
    ```
    GOOGLE_API_KEY=your_google_api_key_here
    ```
 
 ## Usage
 
-1. Place your PDF file in the project directory
-2. Update the `pdf_path` variable in `main()` function of `pdf_rag.py` to point to your PDF file
-3. Run the application:
+1. Start the application:
    ```bash
-   python pdf_rag.py
+   streamlit run app.py
    ```
-4. Enter your questions when prompted
-5. Type 'quit' to exit the application
 
-## How it Works
+2. Use the interface:
+   - Upload a PDF using the file uploader
+   - Wait for the processing confirmation
+   - Enter your questions about the document
+   - Click "Ask" to get answers
+   - Use "New PDF" to switch documents
 
-1. The PDF is loaded and split into smaller chunks
-2. Text chunks are converted into embeddings using HuggingFace's sentence transformers
-3. Embeddings are stored in a Chroma vector store
-4. When a question is asked:
-   - The question is converted to an embedding
-   - Similar chunks are retrieved from the vector store
-   - Retrieved chunks are sent to Gemini along with the question
-   - Gemini generates an answer based on the provided context
+## Technical Details
 
-## Requirements
+The application uses:
+- LangChain for document processing and RAG implementation
+- Google's Gemini model for question answering
+- Chroma as the vector store for document embeddings
+- Streamlit for the user interface
 
-- Python 3.8+
-- Google API key with access to Gemini
-- Internet connection for API calls
+## File Structure
 
-## Dependencies
+```
+PDF_RAG/
+├── app.py              # Streamlit interface
+├── pdf_rag.py         # Core RAG implementation
+├── requirements.txt   # Project dependencies
+├── .env              # Environment variables (create this)
+└── README.md         # This file
+```
 
-- langchain
-- langchain-google-genai
-- google-generativeai
-- python-dotenv
-- pypdf
-- chromadb
-- sentence-transformers 
+## Important Notes
+
+- The system automatically clears previous context when loading a new PDF
+- Maximum PDF file size: 200MB
+- Supports text-based PDFs (scanned documents may not work optimally)
+- Requires an active internet connection for Gemini API calls
+
+## Error Handling
+
+The application includes error handling for:
+- PDF processing issues
+- API connection problems
+- Invalid questions
+- File management errors
+
+## Contributing
+
+Feel free to submit issues and enhancement requests! 
