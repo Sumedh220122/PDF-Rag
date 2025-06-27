@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import pdfplumber
 import warnings
 import logging
+import chromadb
+import tempfile
 from langchain_google_genai import GoogleGenerativeAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -33,6 +35,12 @@ class PDFQuestionAnswering:
         self.embeddings = HuggingFaceEmbeddings()
         self.vector_store = None
         
+        # Create a temporary directory for ChromaDB
+        self.temp_dir = tempfile.mkdtemp()
+        
+        # Initialize ChromaDB client with temporary directory using new method
+        self.chroma_client = chromadb.PersistentClient(path=self.temp_dir)
+        
     def load_pdf(self) -> List[Document]:
         """Load PDF and convert to documents."""
         documents = []
@@ -60,10 +68,12 @@ class PDFQuestionAnswering:
         )
         texts = text_splitter.split_documents(documents)
         
-        # Create vector store
+        # Create vector store using the ChromaDB client
         self.vector_store = Chroma.from_documents(
             documents=texts,
-            embedding=self.embeddings
+            embedding=self.embeddings,
+            client=self.chroma_client,
+            collection_name="pdf_collection"
         )
         
     def setup_qa_chain(self):
@@ -109,24 +119,42 @@ class PDFQuestionAnswering:
         response = qa_chain({"query": question})
         
         return {
-            "answer": response["result"]
+            "answer": response["result"],
+            "source_documents": response["source_documents"]
         }
+    
+    def cleanup(self):
+        """Clean up temporary directory."""
+        try:
+            import shutil
+            if os.path.exists(self.temp_dir):
+                shutil.rmtree(self.temp_dir)
+        except Exception as e:
+            logging.error(f"Error cleaning up temporary directory: {str(e)}")
 
 def main():
     # Example usage
-    pdf_path = "Sumedh_resume.pdf"  # Replace with your PDF file path
+    pdf_path = "your_pdf_file.pdf"  # Replace with your PDF file path
     qa_system = PDFQuestionAnswering(pdf_path)
     
-    while True:
-        question = input("\nEnter your question (or 'quit' to exit): ")
-        if question.lower() == 'quit':
-            break
-            
-        try:
-            result = qa_system.answer_question(question)
-            print("\nAnswer:", result["answer"])
-        except Exception as e:
-            print(f"An error occurred: {str(e)}")
+    try:
+        while True:
+            question = input("\nEnter your question (or 'quit' to exit): ")
+            if question.lower() == 'quit':
+                break
+                
+            try:
+                result = qa_system.answer_question(question)
+                print("\nAnswer:", result["answer"])
+                print("\nSources:")
+                for i, doc in enumerate(result["source_documents"], 1):
+                    print(f"\nSource {i}:")
+                    print(f"Page: {doc.metadata.get('page', 'Unknown')}")
+                    print(f"Content: {doc.page_content[:200]}...")
+            except Exception as e:
+                print(f"An error occurred: {str(e)}")
+    finally:
+        qa_system.cleanup()
 
 if __name__ == "__main__":
     main() 
