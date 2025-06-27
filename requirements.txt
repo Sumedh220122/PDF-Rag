@@ -8,4 +8,3 @@ sentence-transformers==2.3.1
 pdfplumber==0.10.3
 unstructured==0.11.8
 streamlit==1.32.2 
-sqlite>=3.35.0
