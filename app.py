@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import tempfile
-import shutil
 from pdf_rag import PDFQuestionAnswering
 
 # Set page configuration
@@ -33,18 +32,11 @@ if 'pdf_uploaded' not in st.session_state:
 if 'pdf_name' not in st.session_state:
     st.session_state.pdf_name = None
 
-def clear_vector_store():
-    """Clear the Chroma vector store."""
-    try:
-        if os.path.exists(".chroma"):
-            shutil.rmtree(".chroma")
-    except Exception as e:
-        st.error(f"Error clearing vector store: {str(e)}")
-
 def process_pdf(uploaded_file):
     """Process the uploaded PDF file."""
-    # Clear previous vector store
-    clear_vector_store()
+    # Clean up previous QA system if it exists
+    if st.session_state.qa_system:
+        st.session_state.qa_system.cleanup()
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
         tmp_file.write(uploaded_file.getvalue())
@@ -106,15 +98,15 @@ if st.session_state.pdf_uploaded:
     
     with col2:
         if st.button("New PDF", key="new_pdf_button"):
-            # Clean up temporary file
+            # Clean up QA system and temporary files
+            if st.session_state.qa_system:
+                st.session_state.qa_system.cleanup()
+            
             if hasattr(st.session_state, 'tmp_file_path'):
                 try:
                     os.unlink(st.session_state.tmp_file_path)
                 except:
                     pass
-            
-            # Clear vector store
-            clear_vector_store()
             
             # Reset session state
             st.session_state.qa_system = None
