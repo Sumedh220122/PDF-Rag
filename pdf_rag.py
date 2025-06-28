@@ -4,19 +4,15 @@ from dotenv import load_dotenv
 import pdfplumber
 import warnings
 import logging
-import chromadb
-import tempfile
 from langchain_google_genai import GoogleGenerativeAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
-from chromadb.config import Settings
 
 # Configure logging and warnings
-logging.getLogger("chromadb").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -36,19 +32,6 @@ class PDFQuestionAnswering:
                                     google_api_key=api_key)
         self.embeddings = HuggingFaceEmbeddings()
         self.vector_store = None
-        
-        # Create a temporary directory for ChromaDB
-        self.temp_dir = tempfile.mkdtemp()
-        
-        # Initialize ChromaDB client with DuckDB backend
-        self.chroma_client = chromadb.PersistentClient(
-            path=self.temp_dir,
-            settings=Settings(
-                anonymized_telemetry=False,
-                allow_reset=True,
-                is_persistent=True
-            )
-        )
         
     def load_pdf(self) -> List[Document]:
         """Load PDF and convert to documents."""
@@ -77,12 +60,10 @@ class PDFQuestionAnswering:
         )
         texts = text_splitter.split_documents(documents)
         
-        # Create vector store using the ChromaDB client
-        self.vector_store = Chroma.from_documents(
+        # Create vector store using FAISS
+        self.vector_store = FAISS.from_documents(
             documents=texts,
-            embedding=self.embeddings,
-            client=self.chroma_client,
-            collection_name="pdf_collection"
+            embedding=self.embeddings
         )
         
     def setup_qa_chain(self):
@@ -129,16 +110,18 @@ class PDFQuestionAnswering:
         
         return {
             "answer": response["result"],
+            "source_documents": response["source_documents"]
         }
-    
+        
     def cleanup(self):
-        """Clean up temporary directory."""
-        try:
-            import shutil
-            if os.path.exists(self.temp_dir):
-                shutil.rmtree(self.temp_dir)
-        except Exception as e:
-            logging.error(f"Error cleaning up temporary directory: {str(e)}")
+        """Clean up resources between PDF changes."""
+        # Clear the vector store
+        if self.vector_store is not None:
+            self.vector_store = None
+            
+        # Force garbage collection to free up memory
+        import gc
+        gc.collect()
 
 def main():
     # Example usage
@@ -154,6 +137,11 @@ def main():
             try:
                 result = qa_system.answer_question(question)
                 print("\nAnswer:", result["answer"])
+                print("\nSources:")
+                for i, doc in enumerate(result["source_documents"], 1):
+                    print(f"\nSource {i}:")
+                    print(f"Page: {doc.metadata.get('page', 'Unknown')}")
+                    print(f"Content: {doc.page_content[:200]}...")
             except Exception as e:
                 print(f"An error occurred: {str(e)}")
     finally:
