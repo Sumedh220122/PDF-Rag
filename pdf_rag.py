@@ -13,6 +13,7 @@ from langchain_community.vectorstores import Chroma
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
+from chromadb.config import Settings
 
 # Configure logging and warnings
 logging.getLogger("chromadb").setLevel(logging.ERROR)
@@ -23,23 +24,31 @@ warnings.filterwarnings("ignore", category=UserWarning)
 load_dotenv()
 
 class PDFQuestionAnswering:
-    def __init__(self, pdf_path: str):
+    def __init__(self, pdf_path: str, api_key: str):
         """Initialize the PDF Question Answering system.
         
         Args:
             pdf_path (str): Path to the PDF file
+            api_key (str): Google API key for Gemini model
         """
         self.pdf_path = pdf_path
         self.llm = GoogleGenerativeAI(model="gemini-2.5-flash", 
-                                    google_api_key=os.getenv("GOOGLE_API_KEY"))
+                                    google_api_key=api_key)
         self.embeddings = HuggingFaceEmbeddings()
         self.vector_store = None
         
         # Create a temporary directory for ChromaDB
         self.temp_dir = tempfile.mkdtemp()
         
-        # Initialize ChromaDB client with temporary directory using new method
-        self.chroma_client = chromadb.PersistentClient(path=self.temp_dir)
+        # Initialize ChromaDB client with DuckDB backend
+        self.chroma_client = chromadb.PersistentClient(
+            path=self.temp_dir,
+            settings=Settings(
+                anonymized_telemetry=False,
+                allow_reset=True,
+                is_persistent=True
+            )
+        )
         
     def load_pdf(self) -> List[Document]:
         """Load PDF and convert to documents."""
@@ -120,7 +129,6 @@ class PDFQuestionAnswering:
         
         return {
             "answer": response["result"],
-            "source_documents": response["source_documents"]
         }
     
     def cleanup(self):
@@ -134,8 +142,8 @@ class PDFQuestionAnswering:
 
 def main():
     # Example usage
-    pdf_path = "your_pdf_file.pdf"  # Replace with your PDF file path
-    qa_system = PDFQuestionAnswering(pdf_path)
+    pdf_path = "Sumedh_resume.pdf"  # Replace with your PDF file path
+    qa_system = PDFQuestionAnswering(pdf_path, os.getenv("GOOGLE_API_KEY"))
     
     try:
         while True:
@@ -146,11 +154,6 @@ def main():
             try:
                 result = qa_system.answer_question(question)
                 print("\nAnswer:", result["answer"])
-                print("\nSources:")
-                for i, doc in enumerate(result["source_documents"], 1):
-                    print(f"\nSource {i}:")
-                    print(f"Page: {doc.metadata.get('page', 'Unknown')}")
-                    print(f"Content: {doc.page_content[:200]}...")
             except Exception as e:
                 print(f"An error occurred: {str(e)}")
     finally:
